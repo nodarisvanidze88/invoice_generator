@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { useInvoice, useSaveInvoice } from "../../api/hooks";
 import type { Invoice, InvoiceDocument } from "../../api/types";
-import { Badge, Button, PageLoader } from "../../components/ui";
+import { Badge, Button, Modal, PageLoader } from "../../components/ui";
 import { formatAmount, formatDate, formatInt, formatKg } from "../../lib/format";
 import { docTotals } from "../../lib/invoice";
 import { DetailsTab } from "./DetailsTab";
@@ -37,6 +37,7 @@ export function InvoiceEditorPage() {
   const [draft, setDraft] = useState<InvoiceDocument | null>(null);
   const [tab, setTab] = useState<TabKey>("items");
   const [previewVersion, setPreviewVersion] = useState(0);
+  const [missingPackages, setMissingPackages] = useState(false);
 
   const saved = useMemo(() => (invoice.data ? toDocument(invoice.data) : null), [invoice.data]);
 
@@ -70,8 +71,21 @@ export function InvoiceEditorPage() {
     }
   }, [draft, dirty, save]);
 
-  const download = async (kind: "invoice" | "packing") => {
+  const download = async (kind: "invoice" | "packing", force = false) => {
+    if (kind === "invoice" && !force && draft) {
+      const current = docTotals(draft);
+      if (current.pieces === 0 || current.grossKg === 0) {
+        setMissingPackages(true);
+        return;
+      }
+    }
+    setMissingPackages(false);
     if (await persist()) window.open(`/api/invoices/${id}/${kind}.pdf?download=true`, "_blank");
+  };
+
+  const goToTab = (key: TabKey) => {
+    setMissingPackages(false);
+    setTab(key);
   };
 
   if (invoice.isLoading || !draft) return <PageLoader />;
@@ -156,6 +170,33 @@ export function InvoiceEditorPage() {
       {tab === "preview" && (
         <PreviewTab invoiceId={id} version={previewVersion} dirty={dirty} onSave={persist} saving={save.isPending} />
       )}
+
+      <Modal
+        open={missingPackages}
+        onClose={() => setMissingPackages(false)}
+        title="Number of pieces / gross weight missing"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => download("invoice", true)}>
+              Download anyway
+            </Button>
+            <Button variant="secondary" onClick={() => goToTab("details")}>
+              Enter manually
+            </Button>
+            <Button onClick={() => goToTab("packing")}>Add boxes</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          The invoice footer shows <b>個数 (Number of pieces)</b> and <b>総重量 (Gross weight)</b>. They are calculated from the boxes on
+          the Packing tab — this invoice has{" "}
+          {totals.pieces === 0 ? "no boxes yet" : "boxes without a gross weight"}.
+        </p>
+        <p className="mt-3 text-sm text-slate-600">
+          Add boxes on the <b>Packing</b> tab, or type the values directly on the <b>Details</b> tab.
+        </p>
+      </Modal>
 
       {dirty && (
         <div className="fixed bottom-4 right-4 z-30 flex items-center gap-3 rounded-xl bg-slate-900 py-2 pl-4 pr-2 text-sm text-white shadow-xl">

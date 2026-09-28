@@ -96,6 +96,8 @@ def apply_document(invoice: Invoice, doc: InvoiceDocument) -> None:
     invoice.payment_terms = doc.payment_terms
     invoice.commercial_value = doc.commercial_value
     invoice.remarks = doc.remarks
+    invoice.pieces_override = doc.pieces_override
+    invoice.gross_weight_override_kg = doc.gross_weight_override_kg
     invoice.customer_id = doc.customer_id
     invoice.sender = data["sender"]
     invoice.addressee = data["addressee"]

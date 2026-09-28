@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from functools import lru_cache
 
-from sqlalchemy import Engine, event
+from sqlalchemy import Engine, event, inspect, text
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import get_settings
@@ -24,7 +24,21 @@ def get_engine() -> Engine:
 
 
 def create_tables() -> None:
-    SQLModel.metadata.create_all(get_engine())
+    engine = get_engine()
+    SQLModel.metadata.create_all(engine)
+    add_missing_columns(engine)
+
+
+def add_missing_columns(engine: Engine) -> None:
+    """Lightweight forward-only migration: add columns introduced after a table was created."""
+    inspector = inspect(engine)
+    with engine.begin() as connection:
+        for table in SQLModel.metadata.sorted_tables:
+            existing = {column["name"] for column in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name not in existing:
+                    column_type = column.type.compile(engine.dialect)
+                    connection.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}'))
 
 
 def get_session() -> Iterator[Session]:

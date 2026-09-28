@@ -77,6 +77,8 @@ export interface InvoiceDocument {
   payment_terms: string;
   commercial_value: boolean;
   remarks: string;
+  pieces_override: number | null;
+  gross_weight_override_kg: number | null;
   customer_id: number | null;
   sender: Party;
   addressee: Party;

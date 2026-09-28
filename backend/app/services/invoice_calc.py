@@ -104,12 +104,13 @@ def compute_totals(doc: InvoiceDocument) -> InvoiceTotals:
     active = [line for line in doc.lines if line.qty > 0]
     remaining = remaining_by_line(doc)
     boxes = packed_boxes(doc.boxes)
+    box_gross = sum(box.gross_weight_kg or 0 for box in boxes)
     return InvoiceTotals(
         net_weight_kg=round(sum(line_net_kg(line) for line in active), 3),
         qty=sum(line.qty for line in active),
         amount=round(sum(line_amount(line) for line in active), 2),
-        gross_weight_kg=round(sum(box.gross_weight_kg or 0 for box in boxes), 3),
-        pieces=len(boxes),
+        gross_weight_kg=round(doc.gross_weight_override_kg if doc.gross_weight_override_kg is not None else box_gross, 3),
+        pieces=doc.pieces_override if doc.pieces_override is not None else len(boxes),
         origins=unique_origins(active),
         unpacked_qty=sum(max(value, 0) for value in remaining.values()),
         mismatched_lines=sum(1 for value in remaining.values() if value != 0),

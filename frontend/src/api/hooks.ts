@@ -48,8 +48,8 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api.post<{ authenticated: boolean }>("/api/auth/logout"),
     onSuccess: (data) => {
-      qc.clear();
       qc.setQueryData(keys.session, data);
+      qc.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.session[0] });
     },
   });
 }

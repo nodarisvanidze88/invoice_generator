@@ -78,6 +78,15 @@ def test_totals_use_boxes_for_pieces_gross_and_packing_status() -> None:
     assert totals.mismatched_lines == 1
 
 
+def test_manual_pieces_and_gross_weight_override_boxes() -> None:
+    line = make_line()
+    doc = make_doc([line], [Box(gross_weight_kg=3.0, items=[BoxItem(line_id=line.id, qty=10)])])
+    doc.pieces_override = 5
+    doc.gross_weight_override_kg = 42.5
+    totals = compute_totals(doc)
+    assert (totals.pieces, totals.gross_weight_kg) == (5, 42.5)
+
+
 def test_document_rejects_box_referencing_unknown_line() -> None:
     with pytest.raises(ValueError, match="unknown lines"):
         make_doc([make_line()], [Box(items=[BoxItem(line_id="missing", qty=1)])])

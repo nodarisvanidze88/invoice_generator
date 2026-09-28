@@ -25,8 +25,8 @@ def login(body: LoginRequest, response: Response, settings: Annotated[Settings, 
 
 
 @router.post("/logout", response_model=SessionInfo)
-def logout(response: Response) -> SessionInfo:
-    response.delete_cookie(SESSION_COOKIE)
+def logout(response: Response, settings: Annotated[Settings, Depends(get_settings)]) -> SessionInfo:
+    response.delete_cookie(SESSION_COOKIE, httponly=True, samesite="lax", secure=settings.cookie_secure)
     return SessionInfo(authenticated=False)
 
 

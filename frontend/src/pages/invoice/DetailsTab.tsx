@@ -1,9 +1,11 @@
-import { Building2, MapPin, UserRound } from "lucide-react";
+import { Building2, MapPin, Package, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useCustomers } from "../../api/hooks";
 import type { InvoiceDocument, Party } from "../../api/types";
 import { Card, Field, Input, Select, Textarea } from "../../components/ui";
+import { formatKg, parseOptionalNumber } from "../../lib/format";
+import { boxTotals } from "../../lib/invoice";
 import type { UpdateDoc } from "./InvoiceEditorPage";
 
 function Section({ icon, title, children, aside }: { icon: ReactNode; title: string; children: ReactNode; aside?: ReactNode }) {
@@ -43,6 +45,7 @@ function PartyForm({ party, onChange }: { party: Party; onChange: (party: Party)
 
 export function DetailsTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc: UpdateDoc }) {
   const customers = useCustomers();
+  const fromBoxes = boxTotals(doc.boxes);
   const set = <K extends keyof InvoiceDocument>(key: K, value: InvoiceDocument[K]) => updateDoc((d) => ({ ...d, [key]: value }));
 
   const pickCustomer = (value: string) => {
@@ -119,6 +122,35 @@ export function DetailsTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
         }
       >
         <PartyForm party={doc.addressee} onChange={(party) => set("addressee", party)} />
+      </Section>
+
+      <Section icon={<Package className="size-4" />} title="Packages (invoice footer)">
+        <p className="mb-4 text-sm text-slate-500">
+          Calculated from the boxes on the <b className="text-slate-700">Packing</b> tab
+          {fromBoxes.pieces > 0 ? ` (${fromBoxes.pieces} boxes, ${formatKg(fromBoxes.grossKg)})` : " — no boxes yet"}. Fill in the fields below
+          to override them without packing box by box.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Number of pieces (個数)" hint={`Leave empty to use boxes: ${fromBoxes.pieces}`}>
+            <Input
+              inputMode="numeric"
+              placeholder={String(fromBoxes.pieces)}
+              value={doc.pieces_override ?? ""}
+              onChange={(e) => {
+                const value = parseOptionalNumber(e.target.value);
+                set("pieces_override", value == null ? null : Math.max(0, Math.floor(value)));
+              }}
+            />
+          </Field>
+          <Field label="Gross weight, kg (総重量)" hint={`Leave empty to use boxes: ${formatKg(fromBoxes.grossKg)}`}>
+            <Input
+              inputMode="decimal"
+              placeholder={fromBoxes.grossKg.toFixed(1)}
+              value={doc.gross_weight_override_kg ?? ""}
+              onChange={(e) => set("gross_weight_override_kg", parseOptionalNumber(e.target.value))}
+            />
+          </Field>
+        </div>
       </Section>
 
       <Section icon={<Building2 className="size-4" />} title="Sender (FROM)">

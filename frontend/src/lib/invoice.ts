@@ -75,16 +75,23 @@ export interface DocTotals {
   mismatched: number;
 }
 
-export function docTotals(doc: Pick<InvoiceDocument, "lines" | "boxes">): DocTotals {
+type TotalsSource = Pick<InvoiceDocument, "lines" | "boxes" | "pieces_override" | "gross_weight_override_kg">;
+
+export function boxTotals(boxes: Box[]): { pieces: number; grossKg: number } {
+  const used = boxes.filter((box) => box.items.length > 0 || (box.gross_weight_kg ?? 0) > 0);
+  return { pieces: used.length, grossKg: used.reduce((sum, box) => sum + (box.gross_weight_kg ?? 0), 0) };
+}
+
+export function docTotals(doc: TotalsSource): DocTotals {
   const remaining = remainingByLine(doc);
   const active = doc.lines.filter((line) => line.qty > 0);
-  const boxes = doc.boxes.filter((box) => box.items.length > 0 || (box.gross_weight_kg ?? 0) > 0);
+  const fromBoxes = boxTotals(doc.boxes);
   return {
     netKg: active.reduce((sum, line) => sum + lineNetKg(line), 0),
     qty: active.reduce((sum, line) => sum + line.qty, 0),
     amount: active.reduce((sum, line) => sum + lineAmount(line), 0),
-    grossKg: boxes.reduce((sum, box) => sum + (box.gross_weight_kg ?? 0), 0),
-    pieces: boxes.length,
+    grossKg: doc.gross_weight_override_kg ?? fromBoxes.grossKg,
+    pieces: doc.pieces_override ?? fromBoxes.pieces,
     unpacked: [...remaining.values()].reduce((sum, value) => sum + Math.max(value, 0), 0),
     mismatched: [...remaining.values()].filter((value) => value !== 0).length,
   };

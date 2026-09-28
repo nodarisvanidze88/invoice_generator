@@ -52,6 +52,8 @@ class InvoiceHeader(BaseModel):
     payment_terms: str = ""
     commercial_value: bool = True
     remarks: str = ""
+    pieces_override: int | None = Field(default=None, ge=0)
+    gross_weight_override_kg: float | None = Field(default=None, ge=0)
     customer_id: int | None = None
     sender: Party = Field(default_factory=Party)
     addressee: Party = Field(default_factory=Party)

@@ -61,6 +61,8 @@ class Invoice(SQLModel, table=True):
     payment_terms: str = ""
     commercial_value: bool = True
     remarks: str = ""
+    pieces_override: int | None = None
+    gross_weight_override_kg: float | None = None
     customer_id: int | None = Field(default=None, foreign_key="customer.id", ondelete="SET NULL")
     sender: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     addressee: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))

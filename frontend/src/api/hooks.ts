@@ -5,6 +5,7 @@ import type {
   Company,
   CompanyFields,
   Customer,
+  CustomerFields,
   ImportApplyRow,
   ImportPreview,
   ImportResult,
@@ -12,7 +13,6 @@ import type {
   InvoiceCreate,
   InvoiceDocument,
   InvoiceSummary,
-  Party,
   Product,
   ProductFields,
 } from "./types";
@@ -83,7 +83,7 @@ export function useCustomers() {
 export function useSaveCustomer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id?: number; data: Party }) =>
+    mutationFn: ({ id, data }: { id?: number; data: CustomerFields }) =>
       id ? api.put<Customer>(`/api/customers/${id}`, data) : api.post<Customer>("/api/customers", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.customers }),
   });

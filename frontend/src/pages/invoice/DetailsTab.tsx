@@ -1,4 +1,4 @@
-import { Building2, MapPin, Package, UserRound } from "lucide-react";
+import { Building2, MapPin, Package, Receipt, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useCustomers } from "../../api/hooks";
@@ -23,7 +23,7 @@ function Section({ icon, title, children, aside }: { icon: ReactNode; title: str
   );
 }
 
-function PartyForm({ party, onChange }: { party: Party; onChange: (party: Party) => void }) {
+export function PartyForm({ party, onChange }: { party: Party; onChange: (party: Party) => void }) {
   const set = (key: keyof Party) => (event: { target: { value: string } }) => onChange({ ...party, [key]: event.target.value });
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -56,6 +56,7 @@ export function DetailsTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
       addressee: customer
         ? { name: customer.name, address: customer.address, phone: customer.phone, fax: customer.fax }
         : d.addressee,
+      bill_to: customer ? customer.bill_to : d.bill_to,
     }));
   };
 
@@ -109,7 +110,7 @@ export function DetailsTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
 
       <Section
         icon={<UserRound className="size-4" />}
-        title="Addressee (TO)"
+        title="Addressee / Shipping to (TO)"
         aside={
           <Select value={doc.customer_id ?? ""} onChange={(e) => pickCustomer(e.target.value)} className="h-8 w-56 text-xs">
             <option value="">Choose from customers…</option>
@@ -122,6 +123,31 @@ export function DetailsTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
         }
       >
         <PartyForm party={doc.addressee} onChange={(party) => set("addressee", party)} />
+      </Section>
+
+      <Section
+        icon={<Receipt className="size-4" />}
+        title="Bill to"
+        aside={
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              className="size-4 accent-brand-600"
+              checked={doc.bill_to === null}
+              onChange={(e) => set("bill_to", e.target.checked ? null : { ...doc.addressee })}
+            />
+            Same as shipping address
+          </label>
+        }
+      >
+        {doc.bill_to === null ? (
+          <p className="text-sm text-slate-500">
+            The simplified invoice prints the shipping address in the <b className="text-slate-700">BILL TO</b> box. Untick to enter a
+            different billing address.
+          </p>
+        ) : (
+          <PartyForm party={doc.bill_to} onChange={(party) => set("bill_to", party)} />
+        )}
       </Section>
 
       <Section icon={<Package className="size-4" />} title="Packages (invoice footer)">

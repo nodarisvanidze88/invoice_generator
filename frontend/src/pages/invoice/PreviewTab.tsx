@@ -4,7 +4,9 @@ import { useState } from "react";
 
 import { Button, Card } from "../../components/ui";
 
-type Kind = "invoice" | "packing";
+type Kind = "invoice" | "simple" | "packing";
+
+const KIND_LABELS: Record<Kind, string> = { invoice: "Invoice (full)", simple: "Invoice (simplified)", packing: "Packing list" };
 
 export function PreviewTab({
   invoiceId,
@@ -25,17 +27,17 @@ export function PreviewTab({
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-medium">
-          {(["invoice", "packing"] as const).map((option) => (
+          {(["invoice", "simple", "packing"] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setKind(option)}
               className={clsx(
-                "rounded-md px-3 py-1.5 capitalize transition-colors",
+                "rounded-md px-3 py-1.5 transition-colors",
                 kind === option ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
               )}
             >
-              {option === "invoice" ? "Invoice" : "Packing list"}
+              {KIND_LABELS[option]}
             </button>
           ))}
         </div>

@@ -4,6 +4,8 @@ from typing import Any
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
+from app.schemas import Party
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -32,8 +34,13 @@ class PartyFields(SQLModel):
     fax: str = Field(default="", max_length=100)
 
 
+class CustomerFields(PartyFields):
+    bill_to: Party | None = None
+
+
 class Customer(PartyFields, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    bill_to: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -66,6 +73,7 @@ class Invoice(SQLModel, table=True):
     customer_id: int | None = Field(default=None, foreign_key="customer.id", ondelete="SET NULL")
     sender: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     addressee: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    bill_to: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     lines: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     boxes: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     created_at: datetime = Field(default_factory=utcnow)

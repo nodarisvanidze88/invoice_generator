@@ -130,3 +130,41 @@ def test_csv_import_preview_and_apply(auth_client: TestClient, make_product) -> 
 def test_csv_without_jan_column_is_rejected(auth_client: TestClient) -> None:
     response = auth_client.post("/api/imports/csv/preview", files={"file": ("x.csv", b"name,qty\nA,1\n", "text/csv")})
     assert response.status_code == 422
+
+
+def test_customer_bill_to_flows_into_invoice(auth_client: TestClient, make_product) -> None:
+    billing = {"name": "Neo Tokyo Norway AS", "address": "Karl Johans gate 7\n0154 Oslo", "phone": "+47 210 95 990", "fax": ""}
+    customer = auth_client.post(
+        "/api/customers", json={"name": "Neo Tokyo Norway AS", "address": "Mølleparken 4\n0459 Oslo", "bill_to": billing}
+    ).json()
+    assert customer["bill_to"]["address"].startswith("Karl Johans")
+    product = make_product()
+    invoice = auth_client.post(
+        "/api/invoices", json={"items": [{"product_id": product["id"], "qty": 3}], "customer_id": customer["id"]}
+    ).json()
+    assert invoice["addressee"]["address"].startswith("Mølleparken")
+    assert invoice["bill_to"] == billing
+
+
+def test_simplified_invoice_pdf_and_excel(auth_client: TestClient, make_product) -> None:
+    from openpyxl import load_workbook
+
+    first = make_product(code="1", unit_price=100, weight_g=500)
+    second = make_product(code="2", unit_price=50, weight_g=250)
+    other = make_product(code="3", category="Hair Oil", tariff_code="33059000", unit_price=847.9496, weight_g=80)
+    items = [{"product_id": first["id"], "qty": 2}, {"product_id": second["id"], "qty": 6}, {"product_id": other["id"], "qty": 36}]
+    invoice = auth_client.post("/api/invoices", json={"items": items}).json()
+
+    pdf = auth_client.get(f"/api/invoices/{invoice['id']}/simple.pdf")
+    assert pdf.content.startswith(PDF_MAGIC)
+    text = "".join(page.extract_text() for page in PdfReader(BytesIO(pdf.content)).pages)
+    assert "Sugar-based Candy [17049099]" in text and "BILL TO" in text
+
+    xlsx = auth_client.get(f"/api/invoices/{invoice['id']}/simple.xlsx")
+    assert xlsx.status_code == 200
+    rows = [r for r in load_workbook(BytesIO(xlsx.content)).active.iter_rows(values_only=True) if r[0]]
+    header = next(i for i, r in enumerate(rows) if r[0] == "DESCRIPTIONS [HS Code]")
+    candy, oil, total = rows[header + 1], rows[header + 2], rows[header + 3]
+    assert candy[:5] == ("Sugar-based Candy [17049099]", 2.5, 8, 62.5, 500)
+    assert oil[0] == "Hair Oil [33059000]" and round(oil[3], 2) == 847.95 and round(oil[4], 2) == 30526.19
+    assert total[0] == "Total amount (JPY)" and total[2] == 44 and round(total[4], 2) == 31026.19

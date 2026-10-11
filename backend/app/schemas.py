@@ -57,6 +57,7 @@ class InvoiceHeader(BaseModel):
     customer_id: int | None = None
     sender: Party = Field(default_factory=Party)
     addressee: Party = Field(default_factory=Party)
+    bill_to: Party | None = None
 
 
 class InvoiceDocument(InvoiceHeader):

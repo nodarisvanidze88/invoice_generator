@@ -21,7 +21,11 @@ export interface Party {
   fax: string;
 }
 
-export interface Customer extends Party {
+export interface CustomerFields extends Party {
+  bill_to: Party | null;
+}
+
+export interface Customer extends CustomerFields {
   id: number;
   created_at: string;
 }
@@ -82,6 +86,7 @@ export interface InvoiceDocument {
   customer_id: number | null;
   sender: Party;
   addressee: Party;
+  bill_to: Party | null;
   lines: InvoiceLine[];
   boxes: Box[];
 }

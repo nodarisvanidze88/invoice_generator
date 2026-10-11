@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import Customer, PartyFields
+from app.models import Customer, CustomerFields
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -23,8 +23,8 @@ def list_customers(session: SessionDep) -> list[Customer]:
 
 
 @router.post("", response_model=Customer, status_code=status.HTTP_201_CREATED)
-def create_customer(body: PartyFields, session: SessionDep) -> Customer:
-    customer = Customer.model_validate(body)
+def create_customer(body: CustomerFields, session: SessionDep) -> Customer:
+    customer = Customer.model_validate(body.model_dump())
     session.add(customer)
     session.commit()
     session.refresh(customer)
@@ -32,7 +32,7 @@ def create_customer(body: PartyFields, session: SessionDep) -> Customer:
 
 
 @router.put("/{customer_id}", response_model=Customer)
-def update_customer(customer_id: int, body: PartyFields, session: SessionDep) -> Customer:
+def update_customer(customer_id: int, body: CustomerFields, session: SessionDep) -> Customer:
     customer = _get_or_404(session, customer_id)
     customer.sqlmodel_update(body.model_dump())
     session.add(customer)

@@ -1,10 +1,11 @@
-import { Copy, FileDown, FileText, Package, Trash2 } from "lucide-react";
+import { Copy, FileText, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useDeleteInvoice, useDuplicateInvoice, useInvoices } from "../api/hooks";
 import type { InvoiceSummary } from "../api/types";
+import { DownloadMenu, downloadUrl } from "../components/DownloadMenu";
 import { Badge, Button, Card, ConfirmDialog, EmptyState, IconButton, PageHeader, PageLoader } from "../components/ui";
 import { formatAmount, formatDate, formatInt, formatKg } from "../lib/format";
 
@@ -83,12 +84,7 @@ export function InvoicesPage() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex justify-end gap-0.5">
-                        <IconButton label="Download invoice PDF" onClick={() => window.open(`/api/invoices/${invoice.id}/invoice.pdf?download=true`)}>
-                          <FileDown className="size-4" />
-                        </IconButton>
-                        <IconButton label="Download packing list" onClick={() => window.open(`/api/invoices/${invoice.id}/packing.pdf?download=true`)}>
-                          <Package className="size-4" />
-                        </IconButton>
+                        <DownloadMenu compact onSelect={(kind) => window.open(downloadUrl(invoice.id, kind))} />
                         <IconButton
                           label="Duplicate"
                           onClick={() =>

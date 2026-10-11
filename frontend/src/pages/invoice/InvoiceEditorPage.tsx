@@ -1,11 +1,12 @@
 import clsx from "clsx";
-import { ArrowLeft, Boxes, ClipboardList, Download, Eye, FileText, Save, Truck } from "lucide-react";
+import { ArrowLeft, Boxes, ClipboardList, Eye, FileText, Save, Truck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useInvoice, useSaveInvoice } from "../../api/hooks";
 import type { Invoice, InvoiceDocument } from "../../api/types";
+import { DownloadMenu, downloadUrl, type DownloadKind } from "../../components/DownloadMenu";
 import { Badge, Button, Modal, PageLoader } from "../../components/ui";
 import { formatAmount, formatDate, formatInt, formatKg } from "../../lib/format";
 import { docTotals } from "../../lib/invoice";
@@ -71,7 +72,7 @@ export function InvoiceEditorPage() {
     }
   }, [draft, dirty, save]);
 
-  const download = async (kind: "invoice" | "packing", force = false) => {
+  const download = async (kind: DownloadKind, force = false) => {
     if (kind === "invoice" && !force && draft) {
       const current = docTotals(draft);
       if (current.pieces === 0 || current.grossKg === 0) {
@@ -80,7 +81,7 @@ export function InvoiceEditorPage() {
       }
     }
     setMissingPackages(false);
-    if (await persist()) window.open(`/api/invoices/${id}/${kind}.pdf?download=true`, "_blank");
+    if (await persist()) window.open(downloadUrl(id, kind), "_blank");
   };
 
   const goToTab = (key: TabKey) => {
@@ -110,12 +111,7 @@ export function InvoiceEditorPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" icon={<Download className="size-4" />} onClick={() => download("packing")}>
-            Packing list
-          </Button>
-          <Button variant="secondary" icon={<Download className="size-4" />} onClick={() => download("invoice")}>
-            Invoice PDF
-          </Button>
+          <DownloadMenu onSelect={(kind) => download(kind)} />
           <Button icon={<Save className="size-4" />} loading={save.isPending} disabled={!dirty} onClick={persist}>
             Save
           </Button>

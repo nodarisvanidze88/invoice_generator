@@ -9,3 +9,4 @@ backend/data/
 .screens/
 *.xlsm
 *.pdf
+.tmp_e2e/

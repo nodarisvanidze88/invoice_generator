@@ -8,6 +8,7 @@ from app.db import get_session
 from app.models import Customer, Invoice
 from app.pdf.invoice_pdf import render_invoice_pdf
 from app.pdf.packing_pdf import render_packing_pdf
+from app.pdf.simple_invoice_pdf import render_simple_invoice_pdf
 from app.schemas import InvoiceCreate, InvoiceDocument, InvoiceLine, InvoiceRead, InvoiceSummary, NextNumber
 from app.services.invoices import (
     apply_document,
@@ -20,9 +21,12 @@ from app.services.invoices import (
     to_read,
     to_summary,
 )
+from app.services.simple_invoice import SimpleInvoice, build_simple_invoice, currency_code_from_label
+from app.services.simple_invoice_xlsx import simple_invoice_to_xlsx
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 SessionDep = Annotated[Session, Depends(get_session)]
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _get_or_404(session: Session, invoice_id: int) -> Invoice:
@@ -85,6 +89,7 @@ def duplicate(invoice_id: int, session: SessionDep) -> InvoiceRead:
     invoice = create_invoice(session, lines, customer)
     doc = to_document(invoice)
     doc.addressee = source.addressee
+    doc.bill_to = source.bill_to
     doc.remarks = source.remarks
     doc.commercial_value = source.commercial_value
     apply_document(invoice, doc)
@@ -115,3 +120,26 @@ def packing_pdf(invoice_id: int, session: SessionDep, download: bool = False) ->
     invoice = _get_or_404(session, invoice_id)
     content = render_packing_pdf(to_document(invoice))
     return _pdf_response(content, f"Packing List {invoice.number} Date_{invoice.invoice_date:%d.%m.%Y}.pdf", download)
+
+
+def _simple_invoice(session: Session, invoice: Invoice) -> SimpleInvoice:
+    company = get_company(session)
+    return build_simple_invoice(to_document(invoice), currency_code_from_label(company.currency_label))
+
+
+@router.get("/{invoice_id}/simple.pdf")
+def simple_invoice_pdf(invoice_id: int, session: SessionDep, download: bool = False) -> Response:
+    invoice = _get_or_404(session, invoice_id)
+    content = render_simple_invoice_pdf(_simple_invoice(session, invoice))
+    return _pdf_response(content, f"Invoice {invoice.number} (simplified) Date_{invoice.invoice_date:%d.%m.%Y}.pdf", download)
+
+
+@router.get("/{invoice_id}/simple.xlsx")
+def simple_invoice_xlsx(invoice_id: int, session: SessionDep) -> Response:
+    invoice = _get_or_404(session, invoice_id)
+    filename = f"Invoice {invoice.number} (simplified) Date_{invoice.invoice_date:%d.%m.%Y}.xlsx"
+    return Response(
+        simple_invoice_to_xlsx(_simple_invoice(session, invoice)),
+        media_type=XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )

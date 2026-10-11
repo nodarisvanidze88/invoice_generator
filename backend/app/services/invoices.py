@@ -101,6 +101,7 @@ def apply_document(invoice: Invoice, doc: InvoiceDocument) -> None:
     invoice.customer_id = doc.customer_id
     invoice.sender = data["sender"]
     invoice.addressee = data["addressee"]
+    invoice.bill_to = data["bill_to"]
     invoice.lines = data["lines"]
     invoice.boxes = data["boxes"]
     invoice.updated_at = utcnow()
@@ -126,6 +127,7 @@ def create_invoice(
         customer_id=customer.id if customer else None,
         sender=party_from(company),
         addressee=party_from(customer),
+        bill_to=Party.model_validate(customer.bill_to) if customer and customer.bill_to else None,
         lines=lines,
     )
     invoice = Invoice(number=number, invoice_date=doc.invoice_date)

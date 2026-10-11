@@ -119,11 +119,41 @@ export interface AutoPackResult {
   volumetric_divisor: number;
 }
 
+export type ProductImportMode = "new_only" | "upsert";
+
+export interface ProductImportChange {
+  field: string;
+  label: string;
+  current: string | number | boolean | null;
+  incoming: string | number | boolean | null;
+}
+
+export interface ProductImportRow {
+  row: number;
+  status: "new" | "existing" | "duplicate" | "invalid";
+  code: string;
+  name: string;
+  category: string;
+  unit_price: number | null;
+  product_id: number | null;
+  product_code: string;
+  product_name: string;
+  changes: ProductImportChange[];
+  message: string;
+}
+
+export interface ProductImportPreview {
+  new: ProductImportRow[];
+  existing: ProductImportRow[];
+  problems: ProductImportRow[];
+}
+
 export interface ProductImportSummary {
   created: number;
   updated: number;
-  skipped: number;
-  errors: string[];
+  unchanged: number;
+  skipped_existing: number;
+  skipped_invalid: number;
 }
 
 export interface InvoiceDocument {
@@ -212,4 +242,33 @@ export interface ImportResult {
   created: number;
   updated: number;
   selection: ProductQty[];
+}
+
+export interface ImportColumn {
+  index: number;
+  letter: string;
+  header: string;
+  samples: string[];
+}
+
+export interface ImportSheet {
+  name: string;
+  recognized: number;
+  header_row: number;
+  recommended: boolean;
+}
+
+export interface ImportLayout {
+  sheet: string;
+  header_row: number;
+  mapping: Record<string, number>;
+  weight_in_kg: boolean;
+}
+
+export interface ImportInspection {
+  sheets: ImportSheet[];
+  layout: ImportLayout;
+  columns: ImportColumn[];
+  data_rows: number;
+  unmapped_headers: string[];
 }

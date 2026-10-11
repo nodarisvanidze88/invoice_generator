@@ -121,9 +121,8 @@ def test_product_excel_round_trip_updates_dimensions(auth_client: TestClient, ma
     buffer = BytesIO()
     exported.save(buffer)
 
-    summary = auth_client.post("/api/products/import.xlsx", files={"file": ("p.xlsx", buffer.getvalue())}).json()
-    assert (summary["updated"], summary["created"], summary["skipped"]) == (1, 1, 1)
-    assert summary["errors"][0].startswith("Row 4")
+    summary = auth_client.post("/api/products/import.xlsx?mode=upsert", files={"file": ("p.xlsx", buffer.getvalue())}).json()
+    assert (summary["updated"], summary["created"], summary["skipped_invalid"]) == (1, 1, 1)
     updated = next(p for p in auth_client.get("/api/products").json() if p["id"] == product["id"])
     assert (updated["length_cm"], updated["width_cm"], updated["height_cm"]) == (12.5, 8, 3)
     assert updated["unit_price"] == product["unit_price"]
@@ -161,7 +160,7 @@ def test_keep_upright_round_trips_through_excel(auth_client: TestClient, make_pr
     sheet.cell(row=2, column=column, value="Yes")
     buffer = BytesIO()
     workbook.save(buffer)
-    auth_client.post("/api/products/import.xlsx", files={"file": ("p.xlsx", buffer.getvalue())})
+    auth_client.post("/api/products/import.xlsx?mode=upsert", files={"file": ("p.xlsx", buffer.getvalue())})
     assert next(p for p in auth_client.get("/api/products").json() if p["id"] == product["id"])["keep_upright"] is True
 
 

@@ -47,3 +47,28 @@ def products_to_xlsx(products: list[Product]) -> bytes:
     buffer = BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
+
+
+TEMPLATE_EXAMPLES: list[list[object]] = [
+    [None, "4902435012749", "Pineapple Candy 110g", "", "Japan", 120, 132.11, "Sugar-based Candy", "17049099", 18, 12, 4, "No"],
+    [None, "4987241171255", "HadaLabo Skin Lotion 170ml", "Plastic", "Japan", 230, 956, "Skin Lotion", "33049910", 6, 4.5, 16, "Yes"],
+]
+
+
+def import_template_xlsx() -> bytes:
+    """Empty catalogue sheet with the expected headers and two example rows (leave ID empty for new products)."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Products"
+    sheet.append([title for title, _, _ in COLUMNS])
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = HEADER_FILL
+    for row in TEMPLATE_EXAMPLES:
+        sheet.append(row)
+    for index, (_, _, width) in enumerate(COLUMNS, start=1):
+        sheet.column_dimensions[get_column_letter(index)].width = width
+    sheet.freeze_panes = "A2"
+    buffer = BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()

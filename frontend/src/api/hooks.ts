@@ -6,6 +6,10 @@ import type {
   BoxType,
   BoxTypeFields,
   InvoiceLine,
+  ImportInspection,
+  ImportLayout,
+  ProductImportMode,
+  ProductImportPreview,
   ProductImportSummary,
   Company,
   CompanyFields,
@@ -193,14 +197,41 @@ export function useApplyImport() {
   });
 }
 
+function fileForm(file: File): FormData {
+  const form = new FormData();
+  form.append("file", file);
+  return form;
+}
+
+function layoutForm(file: File, layout: ImportLayout): FormData {
+  const form = fileForm(file);
+  form.append("layout", JSON.stringify(layout));
+  return form;
+}
+
+export function useInspectProductImport() {
+  return useMutation({
+    mutationFn: ({ file, sheet, headerRow }: { file: File; sheet?: string; headerRow?: number }) => {
+      const form = fileForm(file);
+      if (sheet) form.append("sheet", sheet);
+      if (headerRow) form.append("header_row", String(headerRow));
+      return api.post<ImportInspection>("/api/products/import.xlsx/inspect", form);
+    },
+  });
+}
+
+export function usePreviewProductImport() {
+  return useMutation({
+    mutationFn: ({ file, layout }: { file: File; layout: ImportLayout }) =>
+      api.post<ProductImportPreview>("/api/products/import.xlsx/preview", layoutForm(file, layout)),
+  });
+}
+
 export function useImportProducts() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => {
-      const form = new FormData();
-      form.append("file", file);
-      return api.post<ProductImportSummary>("/api/products/import.xlsx", form);
-    },
+    mutationFn: ({ file, layout, mode }: { file: File; layout: ImportLayout; mode: ProductImportMode }) =>
+      api.post<ProductImportSummary>(`/api/products/import.xlsx?mode=${mode}`, layoutForm(file, layout)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.products }),
   });
 }

@@ -27,6 +27,10 @@ function buildRows(preview: ImportPreview): EditableRow[] {
       unit_price: null,
       category: "",
       tariff_code: "",
+      length_cm: null,
+      width_cm: null,
+      height_cm: null,
+      keep_upright: false,
     };
     return {
       ...base,

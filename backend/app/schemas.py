@@ -27,6 +27,10 @@ class InvoiceLine(BaseModel):
     unit_price: float | None = Field(default=None, ge=0)
     category: str = ""
     tariff_code: str = ""
+    length_cm: float | None = Field(default=None, ge=0)
+    width_cm: float | None = Field(default=None, ge=0)
+    height_cm: float | None = Field(default=None, ge=0)
+    keep_upright: bool = False
     qty: int = Field(ge=0)
 
 
@@ -35,13 +39,31 @@ class BoxItem(BaseModel):
     qty: int = Field(gt=0)
 
 
+class Placement(BaseModel):
+    """A block of identical units inside a box: origin (x, y, z) and a grid of nx × ny × nz units of size (dx, dy, dz)."""
+
+    line_id: str
+    x: float
+    y: float
+    z: float
+    dx: float
+    dy: float
+    dz: float
+    nx: int = Field(ge=1)
+    ny: int = Field(ge=1)
+    nz: int = Field(ge=1)
+
+
 class Box(BaseModel):
     id: str = Field(default_factory=new_id)
+    box_type_id: int | None = None
+    box_type_name: str = ""
     length_cm: float | None = Field(default=None, ge=0)
     width_cm: float | None = Field(default=None, ge=0)
     height_cm: float | None = Field(default=None, ge=0)
     gross_weight_kg: float | None = Field(default=None, ge=0)
     items: list[BoxItem] = Field(default_factory=list)
+    placements: list[Placement] = Field(default_factory=list)
 
 
 class InvoiceHeader(BaseModel):
@@ -71,7 +93,7 @@ class InvoiceDocument(InvoiceHeader):
             raise ValueError("Invoice line ids must be unique")
         known = set(line_ids)
         for box in self.boxes:
-            unknown = {item.line_id for item in box.items} - known
+            unknown = {item.line_id for item in [*box.items, *box.placements]} - known
             if unknown:
                 raise ValueError(f"Box references unknown lines: {', '.join(sorted(unknown))}")
         return self

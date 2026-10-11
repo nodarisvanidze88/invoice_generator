@@ -7,6 +7,10 @@ export interface ProductFields {
   unit_price: number | null;
   category: string;
   tariff_code: string;
+  length_cm: number | null;
+  width_cm: number | null;
+  height_cm: number | null;
+  keep_upright: boolean;
 }
 
 export interface Product extends ProductFields {
@@ -39,6 +43,7 @@ export interface CompanyFields extends Party {
   trade_term_label: string;
   invoice_prefix: string;
   next_invoice_number: number;
+  volumetric_divisor: number;
 }
 
 export interface Company extends CompanyFields {
@@ -56,6 +61,10 @@ export interface InvoiceLine {
   unit_price: number | null;
   category: string;
   tariff_code: string;
+  length_cm: number | null;
+  width_cm: number | null;
+  height_cm: number | null;
+  keep_upright: boolean;
   qty: number;
 }
 
@@ -64,13 +73,57 @@ export interface BoxItem {
   qty: number;
 }
 
+export interface Placement {
+  line_id: string;
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  nx: number;
+  ny: number;
+  nz: number;
+}
+
 export interface Box {
   id: string;
+  box_type_id: number | null;
+  box_type_name: string;
   length_cm: number | null;
   width_cm: number | null;
   height_cm: number | null;
   gross_weight_kg: number | null;
   items: BoxItem[];
+  placements: Placement[];
+}
+
+export interface BoxTypeFields {
+  name: string;
+  length_cm: number;
+  width_cm: number;
+  height_cm: number;
+  tare_weight_kg: number;
+  max_weight_kg: number;
+  active: boolean;
+}
+
+export interface BoxType extends BoxTypeFields {
+  id: number;
+}
+
+export interface AutoPackResult {
+  boxes: Box[];
+  unpacked: { line_id: string; qty: number; reason: string }[];
+  estimated_line_ids: string[];
+  volumetric_divisor: number;
+}
+
+export interface ProductImportSummary {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
 }
 
 export interface InvoiceDocument {

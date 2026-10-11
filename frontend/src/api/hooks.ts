@@ -2,6 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
 import type {
+  AutoPackResult,
+  BoxType,
+  BoxTypeFields,
+  InvoiceLine,
+  ProductImportSummary,
   Company,
   CompanyFields,
   Customer,
@@ -23,6 +28,7 @@ export const keys = {
   customers: ["customers"] as const,
   company: ["company"] as const,
   invoices: ["invoices"] as const,
+  boxTypes: ["box-types"] as const,
   invoice: (id: number) => ["invoices", id] as const,
   nextNumber: ["invoices", "next-number"] as const,
 };
@@ -184,5 +190,44 @@ export function useApplyImport() {
     mutationFn: (body: { rows: ImportApplyRow[]; update_prices: boolean }) =>
       api.post<ImportResult>("/api/imports/csv/apply", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.products }),
+  });
+}
+
+export function useImportProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return api.post<ProductImportSummary>("/api/products/import.xlsx", form);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.products }),
+  });
+}
+
+export function useBoxTypes() {
+  return useQuery({ queryKey: keys.boxTypes, queryFn: () => api.get<BoxType[]>("/api/box-types") });
+}
+
+export function useSaveBoxType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id?: number; data: BoxTypeFields }) =>
+      id ? api.put<BoxType>(`/api/box-types/${id}`, data) : api.post<BoxType>("/api/box-types", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.boxTypes }),
+  });
+}
+
+export function useDeleteBoxType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`/api/box-types/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.boxTypes }),
+  });
+}
+
+export function useAutoPack() {
+  return useMutation({
+    mutationFn: (body: { lines: InvoiceLine[]; box_type_ids: number[] }) => api.post<AutoPackResult>("/api/packing/auto", body),
   });
 }

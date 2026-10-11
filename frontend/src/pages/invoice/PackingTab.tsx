@@ -1,24 +1,36 @@
 import clsx from "clsx";
-import { AlertTriangle, ArrowRight, Box as BoxIcon, CheckCircle2, ChevronDown, Copy, PackagePlus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, ArrowRight, Box as BoxIcon, CheckCircle2, ChevronDown, Copy, PackagePlus, Rotate3d, Sparkles, Trash2 } from "lucide-react";
+import { Suspense, lazy, useMemo, useState } from "react";
 
 import type { Box, InvoiceDocument, InvoiceLine } from "../../api/types";
-import { Badge, Button, Card, EmptyState, IconButton, Input } from "../../components/ui";
+import { Badge, Button, Card, EmptyState, IconButton, Input, Modal, Spinner } from "../../components/ui";
 import { formatInt, formatKg, parseOptionalNumber } from "../../lib/format";
 import { boxNetKg, lineDescription, newId, remainingByLine } from "../../lib/invoice";
+import { AutoPackModal } from "./AutoPackModal";
 import type { UpdateDoc } from "./InvoiceEditorPage";
+
+const Box3DView = lazy(() => import("./Box3DView"));
 
 const DEFAULT_BOX = { length_cm: 64, width_cm: 43, height_cm: 52 };
 
 function makeBox(template?: Box): Box {
   return {
     id: newId(),
+    box_type_id: template?.box_type_id ?? null,
+    box_type_name: template?.box_type_name ?? "",
     length_cm: template?.length_cm ?? DEFAULT_BOX.length_cm,
     width_cm: template?.width_cm ?? DEFAULT_BOX.width_cm,
     height_cm: template?.height_cm ?? DEFAULT_BOX.height_cm,
     gross_weight_kg: null,
     items: [],
+    placements: [],
   };
+}
+
+function fillRatio(box: Box): number | null {
+  const volume = (box.length_cm ?? 0) * (box.width_cm ?? 0) * (box.height_cm ?? 0);
+  if (!volume || !box.placements.length) return null;
+  return box.placements.reduce((sum, p) => sum + p.dx * p.dy * p.dz * p.nx * p.ny * p.nz, 0) / volume;
 }
 
 function DimInput({ value, onChange, label }: { value: number | null; onChange: (v: number | null) => void; label: string }) {
@@ -39,6 +51,8 @@ function DimInput({ value, onChange, label }: { value: number | null; onChange: 
 export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc: UpdateDoc }) {
   const [activeId, setActiveId] = useState<string | null>(doc.boxes[0]?.id ?? null);
   const [pending, setPending] = useState<Record<string, string>>({});
+  const [autoPackOpen, setAutoPackOpen] = useState(false);
+  const [viewing, setViewing] = useState<{ box: Box; index: number } | null>(null);
 
   const linesById = useMemo(() => new Map(doc.lines.map((l) => [l.id, l])), [doc.lines]);
   const remaining = useMemo(() => remainingByLine(doc), [doc]);
@@ -66,7 +80,7 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
       boxes: d.boxes.map((b) => {
         if (b.id !== boxId) return b;
         const items = qty > 0 ? b.items.map((i) => (i.line_id === lineId ? { ...i, qty } : i)) : b.items.filter((i) => i.line_id !== lineId);
-        return { ...b, items };
+        return { ...b, items, placements: [] };
       }),
     }));
 
@@ -80,7 +94,7 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
         const items = existing
           ? b.items.map((i) => (i.line_id === line.id ? { ...i, qty: i.qty + qty } : i))
           : [...b.items, { line_id: line.id, qty }];
-        return { ...b, items };
+        return { ...b, items, placements: [] };
       }),
     }));
     setPending((p) => ({ ...p, [line.id]: "" }));
@@ -99,11 +113,17 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-slate-500">
-            Click a box to open it, then add items from the <b className="text-slate-700">Unpacked</b> panel.
+            Let <b className="text-slate-700">Auto-pack</b> plan the boxes, or open a box and add items from the{" "}
+            <b className="text-slate-700">Unpacked</b> panel.
           </p>
-          <Button size="sm" icon={<PackagePlus className="size-4" />} onClick={() => addBox()}>
-            Add box
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" icon={<PackagePlus className="size-4" />} onClick={() => addBox()}>
+              Add box
+            </Button>
+            <Button size="sm" icon={<Sparkles className="size-4" />} onClick={() => setAutoPackOpen(true)} disabled={!doc.lines.length}>
+              Auto-pack
+            </Button>
+          </div>
         </div>
 
         {doc.boxes.length === 0 && (
@@ -111,11 +131,16 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
             <EmptyState
               icon={<BoxIcon className="size-5" />}
               title="No boxes yet"
-              description="Create the first box. Dimensions default to 64 × 43 × 52 cm."
+              description="Let Auto-pack decide which box gets what, or add boxes by hand."
               action={
-                <Button size="sm" icon={<PackagePlus className="size-4" />} onClick={() => addBox()}>
-                  Add first box
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="secondary" icon={<PackagePlus className="size-4" />} onClick={() => addBox()}>
+                    Add box manually
+                  </Button>
+                  <Button size="sm" icon={<Sparkles className="size-4" />} onClick={() => setAutoPackOpen(true)} disabled={!doc.lines.length}>
+                    Auto-pack
+                  </Button>
+                </div>
               }
             />
           </Card>
@@ -126,6 +151,7 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
           const net = boxNetKg(box, linesById);
           const qty = box.items.reduce((sum, i) => sum + i.qty, 0);
           const tooLight = box.gross_weight_kg != null && box.gross_weight_kg > 0 && box.gross_weight_kg < net;
+          const fill = fillRatio(box);
           return (
             <Card key={box.id} className={clsx("transition-shadow", active && "ring-2 ring-brand-500")}>
               <div
@@ -144,7 +170,11 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
                   {index + 1}
                 </div>
                 <div className="min-w-[120px] flex-1">
-                  <div className="text-sm font-semibold text-slate-900">Box {index + 1}</div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-900">
+                    Box {index + 1}
+                    {box.box_type_name && <Badge tone="brand">{box.box_type_name}</Badge>}
+                    {fill !== null && <Badge tone={fill > 0.75 ? "green" : "slate"}>{Math.round(fill * 100)}% full</Badge>}
+                  </div>
                   <div className="text-xs text-slate-500">
                     {box.items.length} items · {formatInt(qty)} pcs · net {formatKg(net)}
                   </div>
@@ -167,6 +197,11 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
                   <span>kg</span>
                 </div>
                 <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                  {box.placements.length > 0 && (
+                    <IconButton label="3D view" onClick={() => setViewing({ box, index })} className="text-brand-600 hover:bg-brand-50 hover:text-brand-700">
+                      <Rotate3d className="size-4" />
+                    </IconButton>
+                  )}
                   <IconButton label="Duplicate box size" onClick={() => addBox(box)}>
                     <Copy className="size-4" />
                   </IconButton>
@@ -293,6 +328,20 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
           )}
         </Card>
       </div>
+      <AutoPackModal open={autoPackOpen} onClose={() => setAutoPackOpen(false)} doc={doc} updateDoc={updateDoc} />
+      <Modal
+        open={viewing !== null}
+        onClose={() => setViewing(null)}
+        size="xl"
+        title={viewing ? `Box ${viewing.index + 1}${viewing.box.box_type_name ? ` · ${viewing.box.box_type_name}` : ""}` : ""}
+        description="Suggested arrangement — largest items are placed first, from the bottom up. Click a product to highlight it."
+      >
+        {viewing && (
+          <Suspense fallback={<div className="flex h-[460px] items-center justify-center"><Spinner /></div>}>
+            <Box3DView box={viewing.box} lines={doc.lines} />
+          </Suspense>
+        )}
+      </Modal>
     </div>
   );
 }

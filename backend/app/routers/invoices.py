@@ -21,6 +21,7 @@ from app.services.invoices import (
     to_read,
     to_summary,
 )
+from app.services.full_invoice_xlsx import full_invoice_to_xlsx
 from app.services.simple_invoice import SimpleInvoice, build_simple_invoice, currency_code_from_label
 from app.services.simple_invoice_xlsx import simple_invoice_to_xlsx
 
@@ -140,6 +141,21 @@ def simple_invoice_xlsx(invoice_id: int, session: SessionDep) -> Response:
     filename = f"Invoice {invoice.number} (simplified) Date_{invoice.invoice_date:%d.%m.%Y}.xlsx"
     return Response(
         simple_invoice_to_xlsx(_simple_invoice(session, invoice)),
+        media_type=XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
+
+
+@router.get("/{invoice_id}/invoice.xlsx")
+def full_invoice_xlsx(invoice_id: int, session: SessionDep) -> Response:
+    invoice = _get_or_404(session, invoice_id)
+    company = get_company(session)
+    content = full_invoice_to_xlsx(
+        to_document(invoice), company.currency_label, company.currency_symbol, company.trade_term_label
+    )
+    filename = f"Invoice {invoice.number} Date_{invoice.invoice_date:%d.%m.%Y}.xlsx"
+    return Response(
+        content,
         media_type=XLSX_MEDIA_TYPE,
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )

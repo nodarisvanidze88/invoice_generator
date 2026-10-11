@@ -1,16 +1,19 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
+from pydantic import BaseModel
 from sqlmodel import Session, col, delete, select
 
 from app.db import get_session
 from app.models import Product, ProductFields, utcnow
 from app.schemas import BulkIds
 from app.services.excel_export import products_to_xlsx
+from app.services.product_import import ProductImportError, import_products
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 SessionDep = Annotated[Session, Depends(get_session)]
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+MAX_IMPORT_BYTES = 10 * 1024 * 1024
 
 
 def _get_or_404(session: Session, product_id: int) -> Product:
@@ -65,3 +68,22 @@ def delete_product(product_id: int, session: SessionDep) -> None:
 def bulk_delete(body: BulkIds, session: SessionDep) -> None:
     session.exec(delete(Product).where(col(Product.id).in_(body.ids)))
     session.commit()
+
+
+class ProductImportSummary(BaseModel):
+    created: int
+    updated: int
+    skipped: int
+    errors: list[str]
+
+
+@router.post("/import.xlsx", response_model=ProductImportSummary)
+async def import_products_xlsx(file: UploadFile, session: SessionDep) -> ProductImportSummary:
+    content = await file.read(MAX_IMPORT_BYTES + 1)
+    if len(content) > MAX_IMPORT_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "File is larger than 10 MB")
+    try:
+        result = import_products(session, content)
+    except ProductImportError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    return ProductImportSummary(created=result.created, updated=result.updated, skipped=result.skipped, errors=result.errors)

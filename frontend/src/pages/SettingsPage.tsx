@@ -19,6 +19,8 @@ function Section({ icon, title, description, children }: { icon: ReactNode; titl
   );
 }
 
+const NUMERIC_KEYS = new Set<keyof CompanyFields>(["next_invoice_number", "volumetric_divisor"]);
+
 export function SettingsPage() {
   const company = useCompany();
   const save = useSaveCompany();
@@ -34,7 +36,7 @@ export function SettingsPage() {
   if (company.isLoading || !form) return <PageLoader />;
 
   const set = (key: keyof CompanyFields) => (event: { target: { value: string } }) =>
-    setForm({ ...form, [key]: key === "next_invoice_number" ? Number(event.target.value) : event.target.value });
+    setForm({ ...form, [key]: NUMERIC_KEYS.has(key) ? Number(event.target.value) : event.target.value });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -89,6 +91,9 @@ export function SettingsPage() {
         </Field>
         <Field label="Currency symbol">
           <Input value={form.currency_symbol} onChange={set("currency_symbol")} />
+        </Field>
+        <Field label="Volumetric divisor" hint="DHL: 5000 → volumetric kg = L × W × H (cm) / 5000">
+          <Input type="number" min={1} value={form.volumetric_divisor} onChange={set("volumetric_divisor")} />
         </Field>
       </Section>
       <Section icon={<Hash className="size-4" />} title="Invoice numbering" description={`Next invoice will be ${preview}.`}>

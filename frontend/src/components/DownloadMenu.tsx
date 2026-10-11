@@ -4,10 +4,11 @@ import { createPortal } from "react-dom";
 
 import { Button, IconButton, cn } from "./ui";
 
-export type DownloadKind = "invoice" | "simple" | "simple-xlsx" | "packing";
+export type DownloadKind = "invoice" | "invoice-xlsx" | "simple" | "simple-xlsx" | "packing";
 
 export const DOWNLOAD_OPTIONS: { kind: DownloadKind; label: string; hint: string; icon: typeof FileText }[] = [
   { kind: "invoice", label: "Invoice (full)", hint: "Customs format, line by line · PDF", icon: FileText },
+  { kind: "invoice-xlsx", label: "Invoice (full)", hint: "Customs format, line by line · Excel", icon: FileSpreadsheet },
   { kind: "simple", label: "Invoice (simplified)", hint: "One row per category · PDF", icon: ListChecks },
   { kind: "simple-xlsx", label: "Invoice (simplified)", hint: "One row per category · Excel", icon: FileSpreadsheet },
   { kind: "packing", label: "Packing list", hint: "Box by box · PDF", icon: Package },
@@ -16,6 +17,7 @@ export const DOWNLOAD_OPTIONS: { kind: DownloadKind; label: string; hint: string
 export function downloadUrl(invoiceId: number, kind: DownloadKind): string {
   const paths: Record<DownloadKind, string> = {
     invoice: "invoice.pdf?download=true",
+    "invoice-xlsx": "invoice.xlsx",
     simple: "simple.pdf?download=true",
     "simple-xlsx": "simple.xlsx",
     packing: "packing.pdf?download=true",
@@ -121,7 +123,7 @@ export function DownloadMenu({
                 <span
                   className={cn(
                     "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
-                    kind === "simple-xlsx" ? "bg-emerald-50 text-emerald-600" : "bg-brand-50 text-brand-600",
+                    kind.endsWith("-xlsx") ? "bg-emerald-50 text-emerald-600" : "bg-brand-50 text-brand-600",
                   )}
                 >
                   <Icon className="size-4" />

@@ -29,7 +29,9 @@ def _box_table(index: int, box: Box, lines_by_id: dict[str, InvoiceLine]) -> Tab
     item = style("pi", 7, leading=8.6)
     qty = style("pq", 7, align=TA_CENTER, leading=8.6)
     weight = f"{format_number(box.gross_weight_kg, 2)} kg" if box.gross_weight_kg else ""
-    title = f"Box {index}" + (f"  ·  {_dimensions(box)}" if _dimensions(box) else "")
+    upright = any(lines_by_id[item.line_id].keep_upright for item in box.items if item.line_id in lines_by_id)
+    parts = [f"Box {index}", box.box_type_name, _dimensions(box), "↑ THIS SIDE UP" if upright else ""]
+    title = "  ·  ".join(part for part in parts if part)
     rows: list[list] = [
         [para(title, bold), para(weight, bold_right)],
         [para("内容品の記載 (Description)", head), para("数量(Quantity)", head)],

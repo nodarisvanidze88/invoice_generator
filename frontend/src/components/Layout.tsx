@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Building2, FileText, LogOut, Menu, Package, Settings, Upload, Users, X } from "lucide-react";
+import { Box, Building2, FileText, LogOut, Menu, Package, Settings, Upload, Users, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -10,6 +10,7 @@ const NAV = [
   { to: "/products", label: "Products", icon: Package },
   { to: "/invoices", label: "Invoices", icon: FileText },
   { to: "/customers", label: "Customers", icon: Users },
+  { to: "/box-types", label: "Box types", icon: Box },
   { to: "/import", label: "Import CSV", icon: Upload },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

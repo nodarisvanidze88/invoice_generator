@@ -113,6 +113,10 @@ export function lineFromProduct(product: Product, qty: number): InvoiceLine {
     unit_price: product.unit_price,
     category: product.category,
     tariff_code: product.tariff_code,
+    length_cm: product.length_cm,
+    width_cm: product.width_cm,
+    height_cm: product.height_cm,
+    keep_upright: product.keep_upright,
     qty,
   };
 }

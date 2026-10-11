@@ -38,7 +38,7 @@ export function InvoiceEditorPage() {
   const [draft, setDraft] = useState<InvoiceDocument | null>(null);
   const [tab, setTab] = useState<TabKey>("items");
   const [previewVersion, setPreviewVersion] = useState(0);
-  const [missingPackages, setMissingPackages] = useState(false);
+  const [missingPackages, setMissingPackages] = useState<DownloadKind | null>(null);
 
   const saved = useMemo(() => (invoice.data ? toDocument(invoice.data) : null), [invoice.data]);
 
@@ -73,19 +73,19 @@ export function InvoiceEditorPage() {
   }, [draft, dirty, save]);
 
   const download = async (kind: DownloadKind, force = false) => {
-    if (kind === "invoice" && !force && draft) {
+    if ((kind === "invoice" || kind === "invoice-xlsx") && !force && draft) {
       const current = docTotals(draft);
       if (current.pieces === 0 || current.grossKg === 0) {
-        setMissingPackages(true);
+        setMissingPackages(kind);
         return;
       }
     }
-    setMissingPackages(false);
+    setMissingPackages(null);
     if (await persist()) window.open(downloadUrl(id, kind), "_blank");
   };
 
   const goToTab = (key: TabKey) => {
-    setMissingPackages(false);
+    setMissingPackages(null);
     setTab(key);
   };
 
@@ -168,13 +168,13 @@ export function InvoiceEditorPage() {
       )}
 
       <Modal
-        open={missingPackages}
-        onClose={() => setMissingPackages(false)}
+        open={missingPackages !== null}
+        onClose={() => setMissingPackages(null)}
         title="Number of pieces / gross weight missing"
         size="sm"
         footer={
           <>
-            <Button variant="ghost" onClick={() => download("invoice", true)}>
+            <Button variant="ghost" onClick={() => download(missingPackages ?? "invoice", true)}>
               Download anyway
             </Button>
             <Button variant="secondary" onClick={() => goToTab("details")}>

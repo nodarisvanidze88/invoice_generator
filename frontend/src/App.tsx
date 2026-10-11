@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useSession } from "./api/hooks";
 import { Layout } from "./components/Layout";
 import { PageLoader } from "./components/ui";
+import { BoxTypesPage } from "./pages/BoxTypesPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { ImportPage } from "./pages/ImportPage";
 import { InvoiceEditorPage } from "./pages/invoice/InvoiceEditorPage";
@@ -23,6 +24,7 @@ export function App() {
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/invoices/:id" element={<InvoiceEditorPage />} />
         <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/box-types" element={<BoxTypesPage />} />
         <Route path="/import" element={<ImportPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/products" replace />} />

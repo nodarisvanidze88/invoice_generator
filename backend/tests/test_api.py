@@ -168,3 +168,25 @@ def test_simplified_invoice_pdf_and_excel(auth_client: TestClient, make_product)
     assert candy[:5] == ("Sugar-based Candy [17049099]", 2.5, 8, 62.5, 500)
     assert oil[0] == "Hair Oil [33059000]" and round(oil[3], 2) == 847.95 and round(oil[4], 2) == 30526.19
     assert total[0] == "Total amount (JPY)" and total[2] == 44 and round(total[4], 2) == 31026.19
+
+
+def test_full_invoice_excel(auth_client: TestClient, make_product) -> None:
+    from openpyxl import load_workbook
+
+    candy = make_product(code="1", unit_price=100, weight_g=500)
+    oil = make_product(code="2", category="Hair Oil", tariff_code="33059000", unit_price=847.9496, weight_g=80, origin="China")
+    items = [{"product_id": candy["id"], "qty": 2}, {"product_id": oil["id"], "qty": 36}]
+    invoice = auth_client.post("/api/invoices", json={"items": items}).json()
+
+    response = auth_client.get(f"/api/invoices/{invoice['id']}/invoice.xlsx")
+    assert response.status_code == 200
+    sheet = load_workbook(BytesIO(response.content)).active
+    rows = [r for r in sheet.iter_rows(values_only=True) if any(v is not None for v in r)]
+    assert rows[0][0] == f"INVOICE N {invoice['number']}"
+    labels = [r[0] for r in rows]
+    group = labels.index("Sugar-based Candy [17049099]")
+    assert rows[group][1:5] == (1.0, 2, None, 200)
+    assert rows[group + 1][0] == "1 Pineapple Candy 110g [Japan]" and rows[group + 1][3] == 100
+    total = rows[labels.index("総合計 (Total)")]
+    assert total[2] == 38 and round(total[4], 2) == round(200 + 36 * 847.9496, 2)
+    assert rows[labels.index("原産国(Country of Origin)")][1] == "Japan/China"

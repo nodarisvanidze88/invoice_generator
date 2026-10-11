@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import {
+  ArrowUp,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -11,6 +12,7 @@ import {
   ShoppingCart,
   Tags,
   Trash2,
+  Upload,
   Weight,
   X,
 } from "lucide-react";
@@ -36,6 +38,7 @@ import {
 import { formatAmount, formatInt, formatKg, formatPrice } from "../../lib/format";
 import { useSelection } from "../../store/selection";
 import { CreateInvoiceModal } from "./CreateInvoiceModal";
+import { ImportProductsModal } from "./ImportProductsModal";
 import { ProductFormModal } from "./ProductFormModal";
 
 const PAGE_SIZE = 50;
@@ -63,6 +66,7 @@ export function ProductsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Product[] | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
 
   const all = products.data ?? [];
@@ -133,6 +137,9 @@ export function ProductsPage() {
         description="Select products and quantities, then create an invoice."
         actions={
           <>
+            <Button variant="secondary" icon={<Upload className="size-4" />} onClick={() => setImportOpen(true)}>
+              Import Excel
+            </Button>
             <Button variant="secondary" icon={<Download className="size-4" />} onClick={() => window.open("/api/products/export.xlsx")}>
               Export Excel
             </Button>
@@ -241,7 +248,7 @@ export function ProductsPage() {
           />
         ) : (
           <div className="scrollbar-thin overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1060px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <th className="w-12 px-4 py-3">
@@ -258,6 +265,7 @@ export function ProductsPage() {
                   <th className="px-3 py-3">Category · Tariff</th>
                   <th className="px-3 py-3">Origin</th>
                   <th className="px-3 py-3 text-right">Weight</th>
+                  <th className="px-3 py-3 text-right">Size (cm)</th>
                   <th className="px-3 py-3 text-right">Unit price</th>
                   <th className="w-32 px-3 py-3 text-center">Qty</th>
                   <th className="w-24 px-3 py-3" />
@@ -291,6 +299,16 @@ export function ProductsPage() {
                       </td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">
                         {product.weight_g != null ? `${formatPrice(product.weight_g)} g` : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right text-xs tabular-nums text-slate-500">
+                        {product.length_cm && product.width_cm && product.height_cm ? (
+                          <span className="inline-flex items-center gap-1">
+                            {product.keep_upright && <ArrowUp className="size-3.5 text-amber-600" aria-label="Keep upright" />}
+                            {`${formatPrice(product.length_cm)}×${formatPrice(product.width_cm)}×${formatPrice(product.height_cm)}`}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-right font-medium tabular-nums">
                         {product.unit_price != null ? formatAmount(product.unit_price).replace(/\.00$/, "") : "—"}
@@ -402,6 +420,7 @@ export function ProductsPage() {
         </div>
       )}
 
+      <ImportProductsModal open={importOpen} onClose={() => setImportOpen(false)} />
       <ProductFormModal open={formOpen} product={editing} products={all} onClose={() => setFormOpen(false)} />
       <CreateInvoiceModal
         open={createOpen}

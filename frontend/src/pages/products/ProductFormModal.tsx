@@ -15,6 +15,10 @@ interface FormState {
   unit_price: string;
   category: string;
   tariff_code: string;
+  length_cm: string;
+  width_cm: string;
+  height_cm: string;
+  keep_upright: boolean;
 }
 
 const EMPTY: FormState = {
@@ -26,6 +30,10 @@ const EMPTY: FormState = {
   unit_price: "",
   category: "",
   tariff_code: "",
+  length_cm: "",
+  width_cm: "",
+  height_cm: "",
+  keep_upright: false,
 };
 
 function toForm(product: Product | null): FormState {
@@ -39,6 +47,10 @@ function toForm(product: Product | null): FormState {
     unit_price: product.unit_price?.toString() ?? "",
     category: product.category,
     tariff_code: product.tariff_code,
+    length_cm: product.length_cm?.toString() ?? "",
+    width_cm: product.width_cm?.toString() ?? "",
+    height_cm: product.height_cm?.toString() ?? "",
+    keep_upright: product.keep_upright,
   };
 }
 
@@ -99,6 +111,10 @@ export function ProductFormModal({
       unit_price: parseOptionalNumber(form.unit_price),
       category: form.category.trim(),
       tariff_code: form.tariff_code.trim(),
+      length_cm: parseOptionalNumber(form.length_cm),
+      width_cm: parseOptionalNumber(form.width_cm),
+      height_cm: parseOptionalNumber(form.height_cm),
+      keep_upright: form.keep_upright,
     };
     save.mutate(
       { id: product?.id, data },
@@ -160,6 +176,23 @@ export function ProductFormModal({
         <Field label="Tariff (HS) code" className="sm:col-span-2">
           <Input value={form.tariff_code} onChange={update("tariff_code")} placeholder="17049099" className="font-mono" />
         </Field>
+        <div className="sm:col-span-6">
+          <span className="mb-1.5 block text-xs font-medium text-slate-600">Size of one piece (cm) — used by auto-packing</span>
+          <div className="grid grid-cols-3 gap-3">
+            <Input value={form.length_cm} onChange={update("length_cm")} inputMode="decimal" placeholder="Length" aria-label="Length (cm)" />
+            <Input value={form.width_cm} onChange={update("width_cm")} inputMode="decimal" placeholder="Width" aria-label="Width (cm)" />
+            <Input value={form.height_cm} onChange={update("height_cm")} inputMode="decimal" placeholder="Height" aria-label="Height (cm)" />
+          </div>
+          <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              className="size-4 accent-brand-600"
+              checked={form.keep_upright}
+              onChange={(e) => setForm((prev) => ({ ...prev, keep_upright: e.target.checked }))}
+            />
+            Keep upright (this side up) — bottles, liquids, open-top items. Auto-pack will never tip it over.
+          </label>
+        </div>
         <datalist id="categories">
           {categories.map((c) => (
             <option key={c} value={c} />

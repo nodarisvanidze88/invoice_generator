@@ -6,7 +6,7 @@ from typing import Any
 from sqlmodel import Session, select
 
 from app.config import SEED_FILE
-from app.models import Company, Customer, Product
+from app.models import BoxType, Company, Customer, Product
 from app.schemas import Box, BoxItem
 from app.services.invoices import apply_document, create_invoice, line_from_product, to_document
 
@@ -49,3 +49,18 @@ def seed_database(session: Session) -> bool:
     session.commit()
     logger.info("Seeded %d products and sample invoice %s", len(products), invoice.number)
     return True
+
+
+DEFAULT_BOX_TYPES: tuple[dict[str, Any], ...] = (
+    {"name": "Large 64×43×52", "length_cm": 64, "width_cm": 43, "height_cm": 52, "tare_weight_kg": 1.5, "max_weight_kg": 30},
+    {"name": "Medium 48×39×26", "length_cm": 48, "width_cm": 39, "height_cm": 26, "tare_weight_kg": 0.9, "max_weight_kg": 25},
+    {"name": "Small 40×30×25", "length_cm": 40, "width_cm": 30, "height_cm": 25, "tare_weight_kg": 0.6, "max_weight_kg": 20},
+)
+
+
+def ensure_box_types(session: Session) -> None:
+    if session.exec(select(BoxType)).first() is not None:
+        return
+    session.add_all([BoxType(**fields) for fields in DEFAULT_BOX_TYPES])
+    session.commit()
+    logger.info("Seeded %d default box types", len(DEFAULT_BOX_TYPES))

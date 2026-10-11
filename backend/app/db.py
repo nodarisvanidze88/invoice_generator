@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from functools import lru_cache
 
-from sqlalchemy import Engine, event, inspect, text
+from sqlalchemy import Column, Engine, event, inspect, text
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import get_settings
@@ -38,7 +38,22 @@ def add_missing_columns(engine: Engine) -> None:
             for column in table.columns:
                 if column.name not in existing:
                     column_type = column.type.compile(engine.dialect)
-                    connection.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}'))
+                    connection.execute(
+                        text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}{_default_clause(column)}')
+                    )
+
+
+def _default_clause(column: Column) -> str:
+    default = column.default
+    if default is None or not default.is_scalar or default.arg is None:
+        return ""
+    value = default.arg
+    if isinstance(value, bool):
+        return f" DEFAULT {int(value)}"
+    if isinstance(value, (int, float)):
+        return f" DEFAULT {value}"
+    escaped = str(value).replace("'", "''")
+    return f" DEFAULT '{escaped}'"
 
 
 def get_session() -> Iterator[Session]:

@@ -99,6 +99,19 @@ function LineEditModal({
         <Field label="Tariff code" className="sm:col-span-2">
           <Input value={form.tariff_code} onChange={set("tariff_code")} className="font-mono" />
         </Field>
+        <Field label="Size L (cm)" className="sm:col-span-2">
+          <Input value={form.length_cm ?? ""} inputMode="decimal" onChange={(e) => setForm({ ...form, length_cm: parseOptionalNumber(e.target.value) })} />
+        </Field>
+        <Field label="W (cm)" className="sm:col-span-2">
+          <Input value={form.width_cm ?? ""} inputMode="decimal" onChange={(e) => setForm({ ...form, width_cm: parseOptionalNumber(e.target.value) })} />
+        </Field>
+        <Field label="H (cm)" className="sm:col-span-2">
+          <Input value={form.height_cm ?? ""} inputMode="decimal" onChange={(e) => setForm({ ...form, height_cm: parseOptionalNumber(e.target.value) })} />
+        </Field>
+        <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-6">
+          <input type="checkbox" className="size-4 accent-brand-600" checked={form.keep_upright} onChange={(e) => setForm({ ...form, keep_upright: e.target.checked })} />
+          Keep upright (this side up)
+        </label>
         <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500 sm:col-span-6">
           Printed as: <span className="font-medium text-slate-700">{lineDescription(form)}</span>
         </div>

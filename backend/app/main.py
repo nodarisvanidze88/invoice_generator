@@ -10,8 +10,8 @@ from sqlmodel import Session
 from app.auth import require_session
 from app.config import DEFAULT_SECRET_KEY, get_settings
 from app.db import create_tables, get_engine
-from app.routers import auth, company, customers, imports, invoices, products
-from app.seed_loader import seed_database
+from app.routers import auth, company, customers, imports, invoices, packing, products
+from app.seed_loader import ensure_box_types, seed_database
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     if settings.seed_on_startup:
         with Session(get_engine()) as session:
             seed_database(session)
+            ensure_box_types(session)
     yield
 
 
@@ -33,7 +34,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Invoice Generator", version="1.0.0", lifespan=lifespan)
     app.include_router(auth.router)
     protected = [Depends(require_session)]
-    for module in (products, customers, company, invoices, imports):
+    for module in (products, customers, company, invoices, imports, packing):
         app.include_router(module.router, dependencies=protected)
 
     @app.get("/api/health", include_in_schema=False)

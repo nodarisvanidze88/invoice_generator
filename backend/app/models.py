@@ -20,6 +20,10 @@ class ProductFields(SQLModel):
     unit_price: float | None = Field(default=None, ge=0)
     category: str = Field(default="", max_length=200, index=True)
     tariff_code: str = Field(default="", max_length=50)
+    length_cm: float | None = Field(default=None, ge=0)
+    width_cm: float | None = Field(default=None, ge=0)
+    height_cm: float | None = Field(default=None, ge=0)
+    keep_upright: bool = False
 
 
 class Product(ProductFields, table=True):
@@ -53,9 +57,26 @@ class CompanyFields(PartyFields):
     trade_term_label: str = "E.X.W.JAPAN"
     invoice_prefix: str = Field(default="INV", max_length=20)
     next_invoice_number: int = Field(default=1, ge=1)
+    volumetric_divisor: int = Field(default=5000, ge=1)
 
 
 class Company(CompanyFields, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+
+
+class BoxTypeFields(SQLModel):
+    name: str = Field(min_length=1, max_length=100)
+    length_cm: float = Field(gt=0)
+    width_cm: float = Field(gt=0)
+    height_cm: float = Field(gt=0)
+    tare_weight_kg: float = Field(default=0, ge=0)
+    max_weight_kg: float = Field(default=30, gt=0)
+    active: bool = True
+
+
+class BoxType(BoxTypeFields, table=True):
+    __tablename__ = "box_type"
+
     id: int | None = Field(default=None, primary_key=True)
 
 

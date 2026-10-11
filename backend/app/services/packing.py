@@ -350,19 +350,56 @@ def to_box(state: BoxState) -> Box:
         height_cm=height,
         gross_weight_kg=round(state.gross_kg, 2),
         items=[BoxItem(line_id=line_id, qty=qty) for line_id, qty in quantities.items()],
-        placements=[
-            Placement(
-                line_id=block.line_id,
-                x=block.origin[0],
-                y=block.origin[1],
-                z=block.origin[2],
-                dx=block.unit[0],
-                dy=block.unit[1],
-                dz=block.unit[2],
-                nx=block.counts[0],
-                ny=block.counts[1],
-                nz=block.counts[2],
-            )
-            for block in state.blocks
-        ],
+        placements=to_placements(state),
     )
+
+
+@dataclass
+class BoxLayout:
+    state: BoxState
+    unplaced: Counter[str]
+    estimated_line_ids: list[str]
+
+
+def layout_box(dims: Dims, contents: list[tuple[InvoiceLine, int]], density_by_category: dict[str, float]) -> BoxLayout:
+    """Arrange a box's existing contents in 3D (for visualisation of manually packed boxes). Weight is not limited."""
+    spec = BoxSpec(None, "", dims, 0.0, float("inf"))
+    state = BoxState(spec)
+    items: list[tuple[ItemSpec, int]] = []
+    estimated: list[str] = []
+    for line, qty in contents:
+        size, is_estimated = estimate_dims(line, density_by_category)
+        if is_estimated:
+            estimated.append(line.id)
+        items.append((ItemSpec(line.id, size, 0.0, is_estimated, line.keep_upright), qty))
+    items.sort(key=lambda entry: entry[0].volume, reverse=True)
+
+    unplaced: Counter[str] = Counter()
+    for item, qty in items:
+        left = qty
+        while left > 0:
+            placed = state.place(item, left)
+            if placed == 0:
+                break
+            left -= placed
+        if left:
+            unplaced[item.line_id] = left
+    return BoxLayout(state=state, unplaced=unplaced, estimated_line_ids=estimated)
+
+
+def to_placements(state: BoxState) -> list[Placement]:
+    return [
+        Placement(
+            line_id=block.line_id,
+            x=block.origin[0],
+            y=block.origin[1],
+            z=block.origin[2],
+            dx=block.unit[0],
+            dy=block.unit[1],
+            dz=block.unit[2],
+            nx=block.counts[0],
+            ny=block.counts[1],
+            nz=block.counts[2],
+        )
+        for block in state.blocks
+    ]

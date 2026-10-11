@@ -6,9 +6,9 @@ from sqlmodel import Session, col, select
 
 from app.db import get_session
 from app.models import BoxType, BoxTypeFields, Product
-from app.schemas import Box, InvoiceLine
+from app.schemas import Box, BoxItem, InvoiceLine, Placement
 from app.services.invoices import get_company
-from app.services.packing import BoxSpec, auto_pack, category_densities, to_box
+from app.services.packing import BoxSpec, auto_pack, category_densities, layout_box, to_box, to_placements
 
 router = APIRouter(prefix="/api", tags=["packing"])
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -30,6 +30,25 @@ class AutoPackResult(BaseModel):
     unpacked: list[UnpackedLine]
     estimated_line_ids: list[str]
     volumetric_divisor: int = Field(ge=1)
+
+
+class LayoutRequest(BaseModel):
+    length_cm: float = Field(gt=0)
+    width_cm: float = Field(gt=0)
+    height_cm: float = Field(gt=0)
+    items: list[BoxItem]
+    lines: list[InvoiceLine]
+
+
+class LayoutResult(BaseModel):
+    placements: list[Placement]
+    unplaced: list[BoxItem]
+    estimated_line_ids: list[str]
+
+
+def _densities(session: Session) -> dict[str, float]:
+    rows = session.exec(select(Product.category, Product.weight_g, Product.length_cm, Product.width_cm, Product.height_cm))
+    return category_densities(rows)
 
 
 def _get_or_404(session: Session, box_type_id: int) -> BoxType:
@@ -83,12 +102,23 @@ def run_auto_pack(body: AutoPackRequest, session: SessionDep) -> AutoPackResult:
         BoxSpec(bt.id, bt.name, (bt.length_cm, bt.width_cm, bt.height_cm), bt.tare_weight_kg, bt.max_weight_kg)
         for bt in box_types
     ]
-    products = session.exec(select(Product.category, Product.weight_g, Product.length_cm, Product.width_cm, Product.height_cm))
     divisor = get_company(session).volumetric_divisor
-    result = auto_pack(body.lines, specs, divisor, category_densities(products))
+    result = auto_pack(body.lines, specs, divisor, _densities(session))
     return AutoPackResult(
         boxes=[to_box(state) for state in result.boxes],
         unpacked=[UnpackedLine(line_id=u.line_id, qty=u.qty, reason=u.reason) for u in result.unpacked],
         estimated_line_ids=result.estimated_line_ids,
         volumetric_divisor=divisor,
+    )
+
+
+@router.post("/packing/layout", response_model=LayoutResult)
+def box_layout(body: LayoutRequest, session: SessionDep) -> LayoutResult:
+    lines_by_id = {line.id: line for line in body.lines}
+    contents = [(lines_by_id[item.line_id], item.qty) for item in body.items if item.line_id in lines_by_id]
+    layout = layout_box((body.length_cm, body.width_cm, body.height_cm), contents, _densities(session))
+    return LayoutResult(
+        placements=to_placements(layout.state),
+        unplaced=[BoxItem(line_id=line_id, qty=qty) for line_id, qty in layout.unplaced.items()],
+        estimated_line_ids=layout.estimated_line_ids,
     )

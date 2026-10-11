@@ -173,3 +173,20 @@ def test_gap_fillers_are_not_scattered_across_boxes() -> None:
     assert len(boxes_with_bottles) == 1
     assert packed_quantities(result)[bottles.id] == 12
     assert_valid_geometry(result)
+
+
+def test_layout_endpoint_arranges_existing_box_contents(auth_client: TestClient) -> None:
+    fits = line(qty=24)
+    overflow = line(qty=500, dims=(10, 10, 10))
+    body = {
+        "length_cm": 40, "width_cm": 30, "height_cm": 20,
+        "items": [{"line_id": fits.id, "qty": 24}, {"line_id": overflow.id, "qty": 500}],
+        "lines": [fits.model_dump(), overflow.model_dump()],
+    }
+    result = auth_client.post("/api/packing/layout", json=body).json()
+    placed = Counter()
+    for p in result["placements"]:
+        placed[p["line_id"]] += p["nx"] * p["ny"] * p["nz"]
+    assert sum(placed.values()) == 24
+    assert sum(u["qty"] for u in result["unplaced"]) == 500
+    assert result["estimated_line_ids"] == []

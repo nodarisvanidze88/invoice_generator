@@ -1,15 +1,14 @@
 import clsx from "clsx";
 import { AlertTriangle, ArrowRight, Box as BoxIcon, CheckCircle2, ChevronDown, Copy, PackagePlus, Rotate3d, Sparkles, Trash2 } from "lucide-react";
-import { Suspense, lazy, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { Box, InvoiceDocument, InvoiceLine } from "../../api/types";
-import { Badge, Button, Card, EmptyState, IconButton, Input, Modal, Spinner } from "../../components/ui";
+import { Badge, Button, Card, EmptyState, IconButton, Input, Modal } from "../../components/ui";
 import { formatInt, formatKg, parseOptionalNumber } from "../../lib/format";
 import { boxNetKg, lineDescription, newId, remainingByLine } from "../../lib/invoice";
 import { AutoPackModal } from "./AutoPackModal";
+import { Box3DPanel } from "./Box3DPanel";
 import type { UpdateDoc } from "./InvoiceEditorPage";
-
-const Box3DView = lazy(() => import("./Box3DView"));
 
 const DEFAULT_BOX = { length_cm: 64, width_cm: 43, height_cm: 52 };
 
@@ -53,6 +52,7 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
   const [pending, setPending] = useState<Record<string, string>>({});
   const [autoPackOpen, setAutoPackOpen] = useState(false);
   const [viewing, setViewing] = useState<{ box: Box; index: number } | null>(null);
+  const [boxView, setBoxView] = useState<"items" | "3d">("items");
 
   const linesById = useMemo(() => new Map(doc.lines.map((l) => [l.id, l])), [doc.lines]);
   const remaining = useMemo(() => remainingByLine(doc), [doc]);
@@ -197,7 +197,7 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
                   <span>kg</span>
                 </div>
                 <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                  {box.placements.length > 0 && (
+                  {box.items.length > 0 && (
                     <IconButton label="3D view" onClick={() => setViewing({ box, index })} className="text-brand-600 hover:bg-brand-50 hover:text-brand-700">
                       <Rotate3d className="size-4" />
                     </IconButton>
@@ -219,7 +219,34 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
               )}
               {active && (
                 <div className="border-t border-slate-100">
-                  {box.items.length === 0 ? (
+                  {box.items.length > 0 && (
+                    <div className="flex items-center justify-between gap-3 px-4 pt-3">
+                      <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-medium">
+                        {(["items", "3d"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setBoxView(mode)}
+                            className={clsx(
+                              "flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
+                              boxView === mode ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                            )}
+                          >
+                            {mode === "3d" && <Rotate3d className="size-3.5" />}
+                            {mode === "items" ? `Items (${box.items.length})` : "3D view"}
+                          </button>
+                        ))}
+                      </div>
+                      {boxView === "3d" && !box.placements.length && (
+                        <span className="text-xs text-slate-400">Arranged automatically from the box contents</span>
+                      )}
+                    </div>
+                  )}
+                  {box.items.length > 0 && boxView === "3d" ? (
+                    <div className="p-4">
+                      <Box3DPanel box={box} lines={doc.lines} />
+                    </div>
+                  ) : box.items.length === 0 ? (
                     <p className="px-4 py-6 text-center text-sm text-slate-400">Empty box — add items from the Unpacked panel →</p>
                   ) : (
                     <ul className="divide-y divide-slate-100">
@@ -336,11 +363,7 @@ export function PackingTab({ doc, updateDoc }: { doc: InvoiceDocument; updateDoc
         title={viewing ? `Box ${viewing.index + 1}${viewing.box.box_type_name ? ` · ${viewing.box.box_type_name}` : ""}` : ""}
         description="Suggested arrangement — largest items are placed first, from the bottom up. Click a product to highlight it."
       >
-        {viewing && (
-          <Suspense fallback={<div className="flex h-[460px] items-center justify-center"><Spinner /></div>}>
-            <Box3DView box={viewing.box} lines={doc.lines} />
-          </Suspense>
-        )}
+        {viewing && <Box3DPanel box={viewing.box} lines={doc.lines} />}
       </Modal>
     </div>
   );
